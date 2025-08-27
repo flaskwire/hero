@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vision Pro Guest Mode Escalation PoC</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; padding: 1rem; }
+    button { padding: 10px 16px; margin: 4px; border-radius: 6px; border: 1px solid #ccc; }
+    .log { background: #000; color: #0f0; padding: 1em; font-size: 12px; height: 220px; overflow: auto; margin-top: 20px; }
+    video, canvas { width: 320px; height: 240px; display: block; margin-top: 10px; background: #000; }
+    input { padding: 0.4em; width: 100%; margin-top: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Vision Pro Guest Mode – Escalation PoC</h1>
+  <p>Trigger potential containment escapes from Safari in Guest Mode</p>
+
+  <button onclick="readClipboard()">Read Clipboard</button>
+  <button onclick="writeClipboard()">Write Clipboard</button>
+  <button onclick="getGeo()">Get Location</button>
+  <button onclick="listDevices()">Enumerate Media Devices</button>
+  <button onclick="startCamera()">Start Camera</button>
+  <button onclick="captureFrame()">Capture Frame to Canvas</button>
+
+  <video id="cam" autoplay muted playsinline></video>
+  <canvas id="snap" width="320" height="240"></canvas>
+
+  <div class="log" id="log">Log output:</div>
+
+  <script>
+    const log = (msg) => {
+      const el = document.getElementById('log');
+      el.innerText += "\n" + msg;
+      el.scrollTop = el.scrollHeight;
+    };
+
+    async function readClipboard() {
+      try {
+        const text = await navigator.clipboard.readText();
+        log('[Clipboard] Read: ' + text);
+      } catch (e) {
+        log('[Clipboard] Error: ' + e.message);
+      }
+    }
+
+    async function writeClipboard() {
+      try {
+        await navigator.clipboard.writeText('PoC test string');
+        log('[Clipboard] Write successful');
+      } catch (e) {
+        log('[Clipboard] Write Error: ' + e.message);
+      }
+    }
+
+    function getGeo() {
+      navigator.geolocation.getCurrentPosition(
+        pos => log('[Geolocation] Lat: ' + pos.coords.latitude + ', Lon: ' + pos.coords.longitude),
+        err => log('[Geolocation] Error: ' + err.message)
+      );
+    }
+
+    async function listDevices() {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        devices.forEach(d => log(`[Device] kind=${d.kind}, label=${d.label}, id=${d.deviceId}`));
+      } catch (e) {
+        log('[Devices] Error: ' + e.message);
+      }
+    }
+
+    let stream = null;
+    async function startCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        document.getElementById('cam').srcObject = stream;
+        log('[Camera] Stream started');
+      } catch (e) {
+        log('[Camera] Error: ' + e.message);
+      }
+    }
+
+    function captureFrame() {
+      try {
+        const canvas = document.getElementById('snap');
+        const video = document.getElementById('cam');
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const dataURL = canvas.toDataURL('image/png');
+        log('[Canvas] Frame captured, data URI length: ' + dataURL.length);
+      } catch (e) {
+        log('[Canvas] Capture error: ' + e.message);
+      }
+    }
+  </script>
+</body>
+</html>
