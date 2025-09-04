@@ -2,68 +2,75 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Vision Pro DoS Stress Test</title>
+  <title>WebKit Sandbox Escape Fuzzer</title>
   <style>
-    body { font-family: -apple-system; padding: 1em; }
-    button { margin: 6px; padding: 10px 14px; }
-    .log { background: #000; color: #0f0; padding: 1em; font-size: 12px; height: 200px; overflow: auto; margin-top: 20px; }
+    body { font-family: monospace; background: #111; color: #0f0; padding: 1em; }
+    canvas, video { display: block; margin-top: 10px; }
+    .log { height: 200px; overflow-y: scroll; background: #000; padding: 1em; margin-top: 1em; }
   </style>
 </head>
 <body>
-  <h1>Vision Pro Guest Mode – DoS Stress Test</h1>
-  <button onclick="startAlerts()">Start Infinite Alerts</button>
-  <button onclick="stopAlerts()">Stop Alerts</button>
-  <button onclick="startCameraLoop()">Start Camera Loop</button>
-  <button onclick="startDeviceLoop()">Start Device Loop</button>
-  <button onclick="location.href='tel:+18005551234'">Trigger Call Dialog</button>
-  <button onclick="location.href='mailto:test@example.com'">Trigger Email Dialog</button>
-  <input type="file" accept="image/*" capture><br><br>
-  <video id="cam" autoplay muted playsinline></video>
-  <div class="log" id="log">Log output:</div>
+  <h1>🧪 WebKit + AVFoundation Fuzz Target</h1>
+  <button onclick="startFuzzing()">Start Fuzz</button>
+  <button onclick="stopFuzzing()">Stop</button>
+  <canvas id="canvas" width="64" height="64"></canvas>
+  <video id="video" autoplay muted playsinline></video>
+  <div class="log" id="log">Logs will appear here...</div>
 
   <script>
-    let alertInterval = null;
-    let camLoop = null;
-    let devLoop = null;
-    const log = (msg) => {
-      const el = document.getElementById('log');
-      el.innerText += "\n" + msg;
-      el.scrollTop = el.scrollHeight;
+    const log = msg => {
+      const l = document.getElementById("log");
+      l.innerText += "\n" + msg;
+      l.scrollTop = l.scrollHeight;
     };
 
-    function startAlerts() {
-      if (alertInterval) return;
-      alertInterval = setInterval(() => alert("⚠️ Alert Modal Loop"), 700);
-      log("Infinite alerts started.");
-    }
+    let loop;
+    function startFuzzing() {
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
 
-    function stopAlerts() {
-      clearInterval(alertInterval);
-      alertInterval = null;
-      log("Alerts stopped.");
-    }
+      loop = setInterval(() => {
+        try {
+          // Draw random junk pixels
+          let imgData = ctx.createImageData(canvas.width, canvas.height);
+          for (let i = 0; i < imgData.data.length; i++) {
+            imgData.data[i] = Math.floor(Math.random() * 256);
+          }
+          ctx.putImageData(imgData, 0, 0);
 
-    function startCameraLoop() {
-      if (camLoop) return;
-      camLoop = setInterval(() => {
-        navigator.mediaDevices.getUserMedia({ video: true })
-          .then(stream => {
-            document.getElementById("cam").srcObject = stream;
-            log("Camera stream obtained");
-          })
-          .catch(err => log("Camera error: " + err.message));
-      }, 1000);
-      log("Camera stress loop started.");
-    }
+          // Encode canvas to Blob
+          canvas.toBlob(blob => {
+            // Use the blob as an Image source (decode pipeline)
+            const img = new Image();
+            img.onload = () => {
+              // Re-draw decoded image onto canvas
+              ctx.drawImage(img, 0, 0);
+              log("[+] Redrew decoded image frame");
+            };
+            img.onerror = err => log("[!] Image decode failed");
+            img.src = URL.createObjectURL(blob);
+          }, 'image/png');
 
-    function startDeviceLoop() {
-      if (devLoop) return;
-      devLoop = setInterval(() => {
-        navigator.mediaDevices.enumerateDevices()
-          .then(devices => log("Enumerated " + devices.length + " devices"))
-          .catch(err => log("Device error: " + err.message));
+        } catch (err) {
+          log("[!] Error: " + err.message);
+        }
       }, 500);
-      log("Device enumeration loop started.");
+
+      log("[*] Canvas fuzzing loop started");
+
+      // Start getUserMedia and pipe to video (video parsing path)
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+          const video = document.getElementById("video");
+          video.srcObject = stream;
+          log("[*] Camera stream started");
+        })
+        .catch(err => log("[!] Camera error: " + err.message));
+    }
+
+    function stopFuzzing() {
+      clearInterval(loop);
+      log("[*] Fuzzing stopped");
     }
   </script>
 </body>
