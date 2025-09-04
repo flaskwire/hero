@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>WebKit Sandbox Escape Fuzzer</title>
+  <title>WebKit Advanced Fuzzer</title>
   <style>
     body { font-family: monospace; background: #111; color: #0f0; padding: 1em; }
     canvas, video { display: block; margin-top: 10px; }
@@ -10,10 +10,10 @@
   </style>
 </head>
 <body>
-  <h1>🧪 WebKit + AVFoundation Fuzz Target</h1>
+  <h1>🧨 Advanced WebKit + AVFoundation Fuzzer</h1>
   <button onclick="startFuzzing()">Start Fuzz</button>
   <button onclick="stopFuzzing()">Stop</button>
-  <canvas id="canvas" width="64" height="64"></canvas>
+  <canvas id="canvas" width="1024" height="1024"></canvas>
   <video id="video" autoplay muted playsinline></video>
   <div class="log" id="log">Logs will appear here...</div>
 
@@ -28,49 +28,61 @@
     function startFuzzing() {
       const canvas = document.getElementById("canvas");
       const ctx = canvas.getContext("2d");
+      canvas.width = 1024;
+      canvas.height = 1024;
 
       loop = setInterval(() => {
         try {
-          // Draw random junk pixels
+          // Apply extreme filters randomly
+          const filters = [
+            'blur(500px)', 'contrast(9999%)', 'brightness(0%)',
+            'invert(100%)', 'grayscale(100%)', 'saturate(2000%)'
+          ];
+          ctx.filter = filters[Math.floor(Math.random() * filters.length)];
+
+          // Fill with random pixel data
           let imgData = ctx.createImageData(canvas.width, canvas.height);
           for (let i = 0; i < imgData.data.length; i++) {
             imgData.data[i] = Math.floor(Math.random() * 256);
           }
           ctx.putImageData(imgData, 0, 0);
 
-          // Encode canvas to Blob
+          // Encode to JPEG
           canvas.toBlob(blob => {
-            // Use the blob as an Image source (decode pipeline)
             const img = new Image();
             img.onload = () => {
-              // Re-draw decoded image onto canvas
               ctx.drawImage(img, 0, 0);
-              log("[+] Redrew decoded image frame");
+              log("[+] Re-rendered fuzzed JPEG image");
             };
-            img.onerror = err => log("[!] Image decode failed");
+            img.onerror = () => log("[!] JPEG decode failed");
             img.src = URL.createObjectURL(blob);
-          }, 'image/png');
+          }, 'image/jpeg');
 
         } catch (err) {
-          log("[!] Error: " + err.message);
+          log("[!] Exception: " + err.message);
         }
-      }, 500);
+      }, 300);
 
-      log("[*] Canvas fuzzing loop started");
+      log("[*] Started canvas fuzzing");
 
-      // Start getUserMedia and pipe to video (video parsing path)
+      // Start getUserMedia for AVFoundation stress
       navigator.mediaDevices.getUserMedia({ video: true })
         .then(stream => {
-          const video = document.getElementById("video");
-          video.srcObject = stream;
-          log("[*] Camera stream started");
+          document.getElementById("video").srcObject = stream;
+          log("[*] Camera stream active");
         })
         .catch(err => log("[!] Camera error: " + err.message));
+
+      // Add iframe to introduce DOM churn
+      const iframe = document.createElement("iframe");
+      iframe.srcdoc = "<p>Fuzz iframe</p><canvas width='512' height='512'></canvas>";
+      document.body.appendChild(iframe);
+      log("[*] Injected fuzz iframe");
     }
 
     function stopFuzzing() {
       clearInterval(loop);
-      log("[*] Fuzzing stopped");
+      log("[*] Stopped fuzzing loop");
     }
   </script>
 </body>
