@@ -10,80 +10,10 @@
   </style>
 </head>
 <body>
-  <h1>🧨 Advanced WebKit + AVFoundation Fuzzer</h1>
-  <button onclick="startFuzzing()">Start Fuzz</button>
-  <button onclick="stopFuzzing()">Stop</button>
-  <canvas id="canvas" width="1024" height="1024"></canvas>
-  <video id="video" autoplay muted playsinline></video>
-  <div class="log" id="log">Logs will appear here...</div>
+  <a href="shareddocuments://">Open Shared Documents</a>
+<a href="mobilenotes://">Open Notes App</a>
+<a href="file:///private/var/mobile/Containers/Data/Application/">Open File Path</a>
+<input type="file" id="filePicker" />
 
-  <script>
-    const log = msg => {
-      const l = document.getElementById("log");
-      l.innerText += "\n" + msg;
-      l.scrollTop = l.scrollHeight;
-    };
-
-    let loop;
-    function startFuzzing() {
-      const canvas = document.getElementById("canvas");
-      const ctx = canvas.getContext("2d");
-      canvas.width = 1024;
-      canvas.height = 1024;
-
-      loop = setInterval(() => {
-        try {
-          // Apply extreme filters randomly
-          const filters = [
-            'blur(500px)', 'contrast(9999%)', 'brightness(0%)',
-            'invert(100%)', 'grayscale(100%)', 'saturate(2000%)'
-          ];
-          ctx.filter = filters[Math.floor(Math.random() * filters.length)];
-
-          // Fill with random pixel data
-          let imgData = ctx.createImageData(canvas.width, canvas.height);
-          for (let i = 0; i < imgData.data.length; i++) {
-            imgData.data[i] = Math.floor(Math.random() * 256);
-          }
-          ctx.putImageData(imgData, 0, 0);
-
-          // Encode to JPEG
-          canvas.toBlob(blob => {
-            const img = new Image();
-            img.onload = () => {
-              ctx.drawImage(img, 0, 0);
-              log("[+] Re-rendered fuzzed JPEG image");
-            };
-            img.onerror = () => log("[!] JPEG decode failed");
-            img.src = URL.createObjectURL(blob);
-          }, 'image/jpeg');
-
-        } catch (err) {
-          log("[!] Exception: " + err.message);
-        }
-      }, 300);
-
-      log("[*] Started canvas fuzzing");
-
-      // Start getUserMedia for AVFoundation stress
-      navigator.mediaDevices.getUserMedia({ video: true })
-        .then(stream => {
-          document.getElementById("video").srcObject = stream;
-          log("[*] Camera stream active");
-        })
-        .catch(err => log("[!] Camera error: " + err.message));
-
-      // Add iframe to introduce DOM churn
-      const iframe = document.createElement("iframe");
-      iframe.srcdoc = "<p>Fuzz iframe</p><canvas width='512' height='512'></canvas>";
-      document.body.appendChild(iframe);
-      log("[*] Injected fuzz iframe");
-    }
-
-    function stopFuzzing() {
-      clearInterval(loop);
-      log("[*] Stopped fuzzing loop");
-    }
-  </script>
 </body>
 </html>
